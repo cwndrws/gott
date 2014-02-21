@@ -1,5 +1,6 @@
 gott
 ====
+[![Build Status](https://travis-ci.org/cwandrews/gott.png?branch=master)](https://travis-ci.org/cwandrews/gott)
 
 Go Telemetry Transport (mqtt client library for go)
 
