@@ -2,10 +2,15 @@ package gott
 
 import (
 	"testing"
-	"log"
 )
 
-func TestStaticHeaderBytes(t *testing.T) {
+func TestForReality(t *testing.T) {
+	if true==false {
+		t.Fatal("RUNNNNNNNN!!!!!")
+	}
+}
+
+/*func TestStaticHeaderBytes(t *testing.T) {
 	sh := StaticHeader{
 		MessageType: SUBACK,
 		Dup: true,
@@ -13,4 +18,4 @@ func TestStaticHeaderBytes(t *testing.T) {
 		Remaining: 128,
 	}
 	log.Printf("BYTE: %+v\n", sh.Bytes())
-}
+} */
