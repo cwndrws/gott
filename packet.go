@@ -21,22 +21,22 @@ const (
 // in the mqtt static header
 type StaticHeader struct {
 	MessageType uint8
-	Dup bool
-	Qos uint8
-	Retain bool
-	Remaining int
+	Dup         bool
+	Qos         uint8
+	Retain      bool
+	Remaining   int
 }
 
 // VariableHeader holds all of the data that can be found
 // in the mqtt variable header
 // TODO maybe make this an interface since
 // It can look different a lot of places
-type VariableHeader struct {}
+type VariableHeader struct{}
 
 // Payload is an interface that can be any kind of data
 // you want to send as long as you can write
 // it to bytes before we send it on the wire
-type Payload interface{
+type Payload interface {
 	Bytes() []byte
 }
 
@@ -91,7 +91,7 @@ func (s StaticHeader) Bytes() []byte {
 	return bytesToReturn
 }
 
-// EncodeRemainingLength encodes an int into the 
+// EncodeRemainingLength encodes an int into the
 // Remaining length encoding format as defined in the spec
 func EncodeRemainingLength(length int) []byte {
 	if length == 0 {

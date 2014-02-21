@@ -5,7 +5,7 @@ import (
 )
 
 func TestForReality(t *testing.T) {
-	if true==false {
+	if true == false {
 		t.Fatal("RUNNNNNNNN!!!!!")
 	}
 }
