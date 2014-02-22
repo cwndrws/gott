@@ -40,6 +40,10 @@ type Payload interface {
 	Bytes() []byte
 }
 
+// PayloadBuffer is an alias of []byte so we can attach
+// functions to received payloads 
+type PayloadBuffer []byte
+
 // Message holds everything that a message can be
 // message is the construct that the api will mainly
 // deal with messages as the construct with which to
@@ -58,6 +62,12 @@ func (m Message) Bytes() []byte {
 	bytesToReturn = append(bytesToReturn, m.VariableHeader.Bytes()...)
 	bytesToReturn = append(bytesToReturn, m.Payload.Bytes()...)
 	return bytesToReturn
+}
+
+// Bytes Returns the []byte value of the
+// PayloadBuffer
+func (p PayloadBuffer) Bytes() []byte {
+	return []byte(p)
 }
 
 /********************ENCODING**************************/
@@ -119,7 +129,11 @@ func (v VariableHeader) Bytes() []byte {
 
 /********************DECODING****************************/
 
-func FixedHeaderFromBytes(b []byte) (FixedHeader, int){
+// FixedHeaderFromBytes takes the first few bytes from
+// an incoming packet and parses them into the FixedHeader
+// Returns the fixed header and the number of bytes 
+// That were parsed
+func FixedHeaderFromBytes(b []byte) (FixedHeader, int) {
 	var messageType uint8
 	messageType |= b[0]
 	messageType &^= (15 << 4)
@@ -145,6 +159,9 @@ func FixedHeaderFromBytes(b []byte) (FixedHeader, int){
 	return fh, byteLength+1
 }
 
+// DecodeRemainingLength decodes the encoded remaining
+// length from an incoming packet .Returns the remaining 
+// length and how many bytes were parsed.
 func DecodeRemainingLength(b []byte) (int, int) {
 	multiplier := 1
 	value := 0
@@ -159,6 +176,22 @@ func DecodeRemainingLength(b []byte) (int, int) {
 	return value, cur
 }
 
+// VariableHeaderFromBytes parses bytes from an incoming
+// packet and returns a VariableHeader and how many
+// bytes were parsed
+func VariableHeaderFromBytes(b []byte) (VariableHeader, int) {
+	return VariableHeader{}, 0
+}
+
+// MessageFromBytes parses an incoming packet and returns
+// a message
 func MessageFromBytes(b []byte) Message {
-	return Message{}
+	fixedHeader, fixedLength := FixedHeaderFromBytes(b)
+	variableHeader, variableLength := VariableHeaderFromBytes(b[fixedLength:])
+	payload := b[fixedLength+variableLength:]
+	return Message{
+		FixedHeader: fixedHeader,
+		VariableHeader: variableHeader,
+		Payload: PayloadBuffer(payload),
+	}
 }
