@@ -126,8 +126,9 @@ func FixedHeaderFromBytes(b []byte) FixedHeader {
 
 	dup := b[0] & (1 << 4) > 0
 
+
 	var qos uint8
-	qos |= (b[0] << 5)
+	qos |= (b[0] >> 5)
 	qos &^= (63 << 2)
 
 	retain := b[0] & (1 << 7) > 0
@@ -147,7 +148,7 @@ func DecodeRemainingLength(b []byte) int {
 	multiplier := 1
 	value := 0
 	cur := 0
-	for cur < len(b) && (b[cur] & 128) != 0 {
+	for cur < len(b) {
 		value += int(b[cur] & 127) * multiplier
 		multiplier *= 128
 		cur++
