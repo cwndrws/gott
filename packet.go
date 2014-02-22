@@ -19,7 +19,7 @@ const (
 
 // StaticHeader holds all of the data that is found
 // in the mqtt static header
-type StaticHeader struct {
+type FixedHeader struct {
 	MessageType uint8
 	Dup         bool
 	Qos         uint8
@@ -45,7 +45,7 @@ type Payload interface {
 // deal with messages as the construct with which to
 // attach functionality
 type Message struct {
-	StaticHeader   StaticHeader
+	FixedHeader    FixedHeader
 	VariableHeader VariableHeader
 	Payload        Payload
 }
@@ -54,38 +54,40 @@ type Message struct {
 // this is to prepare the message for sending
 func (m Message) Bytes() []byte {
 	bytesToReturn := make([]byte, 0)
-	bytesToReturn = append(bytesToReturn, m.StaticHeader.Bytes()...)
+	bytesToReturn = append(bytesToReturn, m.FixedHeader.Bytes()...)
 	bytesToReturn = append(bytesToReturn, m.VariableHeader.Bytes()...)
 	bytesToReturn = append(bytesToReturn, m.Payload.Bytes()...)
 	return bytesToReturn
 }
 
-// Bytes writes all the data in the static header
+/********************ENCODING**************************/
+
+// Bytes writes all the data in the fixed header
 // as defined here: http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#fixed-header
-func (s StaticHeader) Bytes() []byte {
+func (f FixedHeader) Bytes() []byte {
 	bytesToReturn := make([]byte, 0)
 	var byte1 byte
 
 	// Set Message type
-	byte1 |= s.MessageType
+	byte1 |= f.MessageType
 
 	// Set Dup Flag
-	if s.Dup {
+	if f.Dup {
 		byte1 |= (1 << 4)
 	}
 
 	// Set Qos
-	byte1 |= (s.Qos << 5)
+	byte1 |= (f.Qos << 5)
 
 	// Set Retain
-	if s.Retain {
+	if f.Retain {
 		byte1 |= (1 << 7)
 	}
 
 	bytesToReturn = append(bytesToReturn, byte1)
 
 	// Set Remaining length
-	lengthBytes := EncodeRemainingLength(s.Remaining)
+	lengthBytes := EncodeRemainingLength(f.Remaining)
 
 	bytesToReturn = append(bytesToReturn, lengthBytes...)
 	return bytesToReturn
@@ -113,4 +115,42 @@ func EncodeRemainingLength(length int) []byte {
 // Bytes writes the variable header to a byte slice
 func (v VariableHeader) Bytes() []byte {
 	return []byte{}
+}
+
+/********************DECODING****************************/
+
+func FixedHeaderFromBytes(b []byte) FixedHeader {
+	var messageType uint8
+	messageType |= b[0]
+	messageType &^= (15 << 4)
+
+	dup := b[0] & (1 << 4) > 0
+
+	var qos uint8
+	qos |= (b[0] << 5)
+	qos &^= (63 << 2)
+
+	retain := b[0] & (1 << 7) > 0
+
+	remaining := DecodeRemainingLength(b[1:])
+
+	return FixedHeader{
+		MessageType: messageType,
+		Dup: dup,
+		Qos: qos,
+		Retain: retain,
+		Remaining: remaining,
+	}
+}
+
+func DecodeRemainingLength(b []byte) int {
+	multiplier := 1
+	value := 0
+	cur := 0
+	for cur < len(b) && (b[cur] & 128) != 0 {
+		value += int(b[cur] & 127) * multiplier
+		multiplier *= 128
+		cur++
+	}
+	return value
 }
