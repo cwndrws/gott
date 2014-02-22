@@ -16,11 +16,14 @@ func TestFixedHeaderEncodeDecode(t *testing.T) {
 		Dup: true,
 		Qos: 1,
 		Retain: true,
-		Remaining: 3213425,
+		Remaining: 321,
 	}
 	b := fh.Bytes()
-	testFH := FixedHeaderFromBytes(b)
+	testFH, bl := FixedHeaderFromBytes(b)
 	if testFH != fh {
 		t.Error("fixed headers did not match")
+	}
+	if bl != 3 {
+		t.Error("Incorrect byte length")
 	}
 }

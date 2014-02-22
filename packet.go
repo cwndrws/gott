@@ -119,7 +119,7 @@ func (v VariableHeader) Bytes() []byte {
 
 /********************DECODING****************************/
 
-func FixedHeaderFromBytes(b []byte) FixedHeader {
+func FixedHeaderFromBytes(b []byte) (FixedHeader, int){
 	var messageType uint8
 	messageType |= b[0]
 	messageType &^= (15 << 4)
@@ -133,25 +133,32 @@ func FixedHeaderFromBytes(b []byte) FixedHeader {
 
 	retain := b[0] & (1 << 7) > 0
 
-	remaining := DecodeRemainingLength(b[1:])
+	remaining, byteLength := DecodeRemainingLength(b[1:])
 
-	return FixedHeader{
+	fh := FixedHeader{
 		MessageType: messageType,
 		Dup: dup,
 		Qos: qos,
 		Retain: retain,
 		Remaining: remaining,
 	}
+	return fh, byteLength+1
 }
 
-func DecodeRemainingLength(b []byte) int {
+func DecodeRemainingLength(b []byte) (int, int) {
 	multiplier := 1
 	value := 0
 	cur := 0
-	for cur < len(b) {
+	last := 0
+	for cur < len(b) && (b[last] & 128) != 0 {
 		value += int(b[cur] & 127) * multiplier
 		multiplier *= 128
+		last = cur
 		cur++
 	}
-	return value
+	return value, cur
+}
+
+func MessageFromBytes(b []byte) Message {
+	return Message{}
 }
