@@ -27,15 +27,15 @@ type FixedHeader struct {
 	Remaining   int
 }
 
-// VariableHeader holds all of the data that can be found
-// in the mqtt variable header
-// TODO maybe make this an interface since
-// It can look different a lot of places
+// VariableHeader is an interface that all of
+// the different types of variable headers
 type VariableHeader interface {
 	Type() string
 	Bytes() []byte
 }
 
+// ConnectHeader holds all of the data for the
+// variable header for CONNECT messages
 type ConnectHeader struct {
 	ProtoName string
 	ProtoVersion uint8
@@ -48,12 +48,14 @@ type ConnectHeader struct {
 	KeepAlive uint8
 }
 
+// ConnackHeader holds all of the data for the
+// variable header for CONNACK messages
 type ConnackHeader struct {
 	ReturnCode uint8
 }
 
-
-
+// PublishHeader holds all of the data for the
+// variable header for PUBLISH messages
 type PublishHeader struct {
 	Topic string
 }
@@ -128,6 +130,8 @@ func (f FixedHeader) Bytes() []byte {
 	return bytesToReturn
 }
 
+// Bytes writes all the data in the variable header for
+// CONNECT messages 
 func (c ConnectHeader) Bytes() []byte {
 	bytesToReturn := make([]byte, 0)
 	ProtoNameBytes := []byte(c.ProtoName)
@@ -163,22 +167,29 @@ func (c ConnectHeader) Bytes() []byte {
 	return bytesToReturn
 }
 
+// Type returns a string of the type of variable header
 func (c ConnectHeader) Type() string {
 	return "CONNECT"
 }
 
+// Bytes returns the bytes of the variable header
+// for the CONNACK message
 func (c ConnackHeader) Bytes() []byte {
 	return []byte{c.ReturnCode}
 }
 
+// Tyoe returns a string of the type of variable header
 func (c ConnackHeader) Type() string {
 	return "CONNACK"
 }
 
+// Bytes returns the bytes of the variable header
+// for the PUBLISH message
 func (p PublishHeader) Bytes() []byte {
 	return []byte(p.Topic)
 }
 
+// Type returns the string of the type of variable header
 func (p PublishHeader) Type() string {
 	return "PUBLISH"
 }
