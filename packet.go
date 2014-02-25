@@ -31,7 +31,32 @@ type FixedHeader struct {
 // in the mqtt variable header
 // TODO maybe make this an interface since
 // It can look different a lot of places
-type VariableHeader struct{}
+type VariableHeader interface {
+	Type() string
+	Bytes() []byte
+}
+
+type ConnectHeader struct {
+	ProtoName string
+	ProtoVersion uint8
+	CleanSession bool
+	Will bool
+	WillQos uint8
+	WillRetain bool
+	Pass bool
+	User bool
+	KeepAlive uint8
+}
+
+type ConnackHeader struct {
+	ReturnCode uint8
+}
+
+
+
+type PublishHeader struct {
+	Topic string
+}
 
 // Payload is an interface that can be any kind of data
 // you want to send as long as you can write
@@ -103,6 +128,62 @@ func (f FixedHeader) Bytes() []byte {
 	return bytesToReturn
 }
 
+func (c ConnectHeader) Bytes() []byte {
+	bytesToReturn := make([]byte, 0)
+	ProtoNameBytes := []byte(c.ProtoName)
+
+	ProtoVersionByte := byte(c.ProtoVersion)
+
+	FlagByte := byte(0)
+
+	if c.CleanSession {
+		FlagByte |= (1 << 1)
+	}
+
+	if c.Will {
+		FlagByte |= (1 << 2)
+	}
+
+	FlagByte |= (c.WillQos << 3)
+
+	if c.WillRetain {
+		FlagByte |= (1 << 5)
+	}
+
+	if c.Pass {
+		FlagByte |= (1 << 6)
+	}
+
+	if c.User {
+		FlagByte |= (1 << 7)
+	}
+
+	bytesToReturn = append(bytesToReturn, ProtoNameBytes...)
+	bytesToReturn = append(bytesToReturn, ProtoVersionByte, FlagByte, c.KeepAlive)
+	return bytesToReturn
+}
+
+func (c ConnectHeader) Type() string {
+	return "CONNECT"
+}
+
+func (c ConnackHeader) Bytes() []byte {
+	return []byte{c.ReturnCode}
+}
+
+func (c ConnackHeader) Type() string {
+	return "CONNACK"
+}
+
+func (p PublishHeader) Bytes() []byte {
+	return []byte(p.Topic)
+}
+
+func (p PublishHeader) Type() string {
+	return "PUBLISH"
+}
+
+
 // EncodeRemainingLength encodes an int into the
 // Remaining length encoding format as defined in the spec
 func EncodeRemainingLength(length int) []byte {
@@ -120,11 +201,6 @@ func EncodeRemainingLength(length int) []byte {
 		encodedLength = append(encodedLength, digit)
 	}
 	return encodedLength
-}
-
-// Bytes writes the variable header to a byte slice
-func (v VariableHeader) Bytes() []byte {
-	return []byte{}
 }
 
 /********************DECODING****************************/
@@ -180,7 +256,7 @@ func DecodeRemainingLength(b []byte) (int, int) {
 // packet and returns a VariableHeader and how many
 // bytes were parsed
 func VariableHeaderFromBytes(b []byte) (VariableHeader, int) {
-	return VariableHeader{}, 0
+	return ConnectHeader{}, 0
 }
 
 // MessageFromBytes parses an incoming packet and returns
