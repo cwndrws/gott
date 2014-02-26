@@ -311,6 +311,8 @@ func msb(i int) byte {
 	return uint8(msb)
 }
 
+// strLen takes the msb and lsb bytes and returns 
+// an int of those two multiplied
 func strLen(msb, lsb byte) int {
 	if msb == 0 {
 		return int(lsb)
