@@ -135,6 +135,8 @@ func (f FixedHeader) Bytes() []byte {
 func (c ConnectHeader) Bytes() []byte {
 	bytesToReturn := make([]byte, 0)
 	ProtoNameBytes := []byte(c.ProtoName)
+	protoNameMsb := msb(len(ProtoNameBytes))
+	protoNameLsb := lsb(len(ProtoNameBytes))
 
 	ProtoVersionByte := byte(c.ProtoVersion)
 
@@ -162,6 +164,7 @@ func (c ConnectHeader) Bytes() []byte {
 		FlagByte |= (1 << 7)
 	}
 
+	bytesToReturn = append(bytesToReturn, protoNameMsb, protoNameLsb)
 	bytesToReturn = append(bytesToReturn, ProtoNameBytes...)
 	bytesToReturn = append(bytesToReturn, ProtoVersionByte, FlagByte, c.KeepAlive)
 	return bytesToReturn
@@ -281,4 +284,26 @@ func MessageFromBytes(b []byte) Message {
 		VariableHeader: variableHeader,
 		Payload: PayloadBuffer(payload),
 	}
+}
+
+/***************** HELPERS ********************/
+
+// lsb takes a 16 bit int and returns the least 
+// significant byte
+func lsb(i int) byte {
+	if i > 65535 {
+		panic("NUMBER IS TOO LARGE MUST BE ABLE TO FIT IN 16 bit unsigned")
+	}
+	lsb := i % 256
+	return uint8(lsb)
+}
+
+// msb takes a 16 bit int and returns the most
+// significant byte
+func msb(i int) byte {
+	if i > 65535 {
+		panic("NUMBER IS TOO LARGE MUST BE ABLE TO FIT IN 16 bit unsigned")
+	}
+	msb := i / 256
+	return uint8(msb)
 }
