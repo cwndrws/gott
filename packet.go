@@ -37,15 +37,15 @@ type VariableHeader interface {
 // ConnectHeader holds all of the data for the
 // variable header for CONNECT messages
 type ConnectHeader struct {
-	ProtoName string
+	ProtoName    string
 	ProtoVersion uint8
 	CleanSession bool
-	Will bool
-	WillQos uint8
-	WillRetain bool
-	Pass bool
-	User bool
-	KeepAlive uint8
+	Will         bool
+	WillQos      uint8
+	WillRetain   bool
+	Pass         bool
+	User         bool
+	KeepAlive    uint8
 }
 
 // ConnackHeader holds all of the data for the
@@ -68,7 +68,7 @@ type Payload interface {
 }
 
 // PayloadBuffer is an alias of []byte so we can attach
-// functions to received payloads 
+// functions to received payloads
 type PayloadBuffer []byte
 
 // Message holds everything that a message can be
@@ -131,7 +131,7 @@ func (f FixedHeader) Bytes() []byte {
 }
 
 // Bytes writes all the data in the variable header for
-// CONNECT messages 
+// CONNECT messages
 func (c ConnectHeader) Bytes() []byte {
 	bytesToReturn := make([]byte, 0)
 	ProtoNameBytes := []byte(c.ProtoName)
@@ -197,7 +197,6 @@ func (p PublishHeader) Type() string {
 	return "PUBLISH"
 }
 
-
 // EncodeRemainingLength encodes an int into the
 // Remaining length encoding format as defined in the spec
 func EncodeRemainingLength(length int) []byte {
@@ -221,44 +220,48 @@ func EncodeRemainingLength(length int) []byte {
 
 // FixedHeaderFromBytes takes the first few bytes from
 // an incoming packet and parses them into the FixedHeader
-// Returns the fixed header and the number of bytes 
+// Returns the fixed header and the number of bytes
 // That were parsed
 func FixedHeaderFromBytes(b []byte) (FixedHeader, int) {
 	var messageType uint8
 	messageType |= b[0]
 	messageType &^= (15 << 4)
 
-	dup := b[0] & (1 << 4) > 0
-
+	dup := b[0]&(1<<4) > 0
 
 	var qos uint8
 	qos |= (b[0] >> 5)
 	qos &^= (63 << 2)
 
-	retain := b[0] & (1 << 7) > 0
+	retain := b[0]&(1<<7) > 0
 
 	remaining, byteLength := DecodeRemainingLength(b[1:])
 
 	fh := FixedHeader{
 		MessageType: messageType,
-		Dup: dup,
-		Qos: qos,
-		Retain: retain,
-		Remaining: remaining,
+		Dup:         dup,
+		Qos:         qos,
+		Retain:      retain,
+		Remaining:   remaining,
 	}
-	return fh, byteLength+1
+	return fh, byteLength + 1
+}
+
+func ConnectHeaderFromBytes(b []byte) (ConnectHeader, int) {
+
+	return ConnectHeader{}, 0
 }
 
 // DecodeRemainingLength decodes the encoded remaining
-// length from an incoming packet .Returns the remaining 
+// length from an incoming packet .Returns the remaining
 // length and how many bytes were parsed.
 func DecodeRemainingLength(b []byte) (int, int) {
 	multiplier := 1
 	value := 0
 	cur := 0
 	last := 0
-	for cur < len(b) && (b[last] & 128) != 0 {
-		value += int(b[cur] & 127) * multiplier
+	for cur < len(b) && (b[last]&128) != 0 {
+		value += int(b[cur]&127) * multiplier
 		multiplier *= 128
 		last = cur
 		cur++
@@ -280,15 +283,15 @@ func MessageFromBytes(b []byte) Message {
 	variableHeader, variableLength := VariableHeaderFromBytes(b[fixedLength:])
 	payload := b[fixedLength+variableLength:]
 	return Message{
-		FixedHeader: fixedHeader,
+		FixedHeader:    fixedHeader,
 		VariableHeader: variableHeader,
-		Payload: PayloadBuffer(payload),
+		Payload:        PayloadBuffer(payload),
 	}
 }
 
 /***************** HELPERS ********************/
 
-// lsb takes a 16 bit int and returns the least 
+// lsb takes a 16 bit int and returns the least
 // significant byte
 func lsb(i int) byte {
 	if i > 65535 {
@@ -306,4 +309,12 @@ func msb(i int) byte {
 	}
 	msb := i / 256
 	return uint8(msb)
+}
+
+func strLen(msb, lsb byte) int {
+	if msb == 0 {
+		return int(lsb)
+	} else {
+		return int(lsb) * int(msb)
+	}
 }

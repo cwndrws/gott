@@ -13,10 +13,10 @@ func TestForReality(t *testing.T) {
 func TestFixedHeaderEncodeDecode(t *testing.T) {
 	fh := FixedHeader{
 		MessageType: PINGREQ,
-		Dup: true,
-		Qos: 1,
-		Retain: true,
-		Remaining: 321,
+		Dup:         true,
+		Qos:         1,
+		Retain:      true,
+		Remaining:   321,
 	}
 	b := fh.Bytes()
 	testFH, bl := FixedHeaderFromBytes(b)
