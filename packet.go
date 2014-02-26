@@ -319,4 +319,5 @@ func strLen(msb, lsb byte) int {
 	} else {
 		return int(lsb) * int(msb)
 	}
+	return 0
 }
