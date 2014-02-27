@@ -60,6 +60,8 @@ type PublishHeader struct {
 	Topic string
 }
 
+type EmptyVariableHeader struct{}
+
 // Payload is an interface that can be any kind of data
 // you want to send as long as you can write
 // it to bytes before we send it on the wire
@@ -199,6 +201,16 @@ func (p PublishHeader) Type() string {
 	return "PUBLISH"
 }
 
+// Bytes returns an empty byte slice
+func (e EmptyVariableHeader) Bytes() []byte {
+	return []byte{}
+}
+
+// Type returns the string "EMPTY"
+func (e EmptyVariableHeader) Type() string {
+	return "EMPTY"
+}
+
 // EncodeRemainingLength encodes an int into the
 // Remaining length encoding format as defined in the spec
 func EncodeRemainingLength(length int) []byte {
@@ -249,54 +261,54 @@ func FixedHeaderFromBytes(b []byte) (FixedHeader, int) {
 	return fh, byteLength + 1
 }
 
-/*
-	ProtoName    string
-	ProtoVersion uint8
-	CleanSession bool
-	Will         bool
-	WillQos      uint8
-	WillRetain   bool
-	Pass         bool
-	User         bool
-	KeepAlive    uint8
-
-*/
-
+// ConnectHeaderFromBytes takes the first few bytes from
+// an incoming packet who's message type is CONNECT and
+// parses them into the ConnectHeader
 func ConnectHeaderFromBytes(b []byte) (ConnectHeader, int) {
 	protoNameLength := strLen(b[0], b[1])
 
-	protoName := string(b[2:protoNameLength+2])
+	protoName := string(b[2 : protoNameLength+2])
 
 	protoVersion := uint8(b[protoNameLength+2])
 
 	flagByte := b[protoNameLength+3]
 
-	clean := flagByte & (1 << 1) > 0
-	will := flagByte & (1 << 2) > 0
+	clean := flagByte&(1<<1) > 0
+	will := flagByte&(1<<2) > 0
 
 	var willQos uint8
 	willQos |= (flagByte >> 3)
 	willQos &^= (63 << 2)
 
-	willRetain := flagByte & (1 << 5) > 0
-	pass := flagByte & (1 << 6) > 0
-	user := flagByte & (1 << 7) > 0
+	willRetain := flagByte&(1<<5) > 0
+	pass := flagByte&(1<<6) > 0
+	user := flagByte&(1<<7) > 0
 
 	keepAlive := strLen(b[protoNameLength+4], b[protoNameLength+5])
 
 	ch := ConnectHeader{
-		ProtoName: protoName,
+		ProtoName:    protoName,
 		ProtoVersion: protoVersion,
 		CleanSession: clean,
-		Will: will,
-		WillQos: willQos,
-		WillRetain: willRetain,
-		Pass: pass,
-		User: user,
-		KeepAlive: keepAlive,
+		Will:         will,
+		WillQos:      willQos,
+		WillRetain:   willRetain,
+		Pass:         pass,
+		User:         user,
+		KeepAlive:    keepAlive,
 	}
 
-	return ch, protoNameLength+6
+	return ch, protoNameLength + 6
+}
+
+// TODO make this a real function
+func ConnackHeaderFromBytes(b []byte) (ConnackHeader, int) {
+	return ConnackHeader{}, 0
+}
+
+// TODO make this a real function
+func PublishHeaderFromBytes(b []byte) (PublishHeader, int) {
+	return PublishHeader{}, 0
 }
 
 // DecodeRemainingLength decodes the encoded remaining
@@ -319,15 +331,25 @@ func DecodeRemainingLength(b []byte) (int, int) {
 // VariableHeaderFromBytes parses bytes from an incoming
 // packet and returns a VariableHeader and how many
 // bytes were parsed
-func VariableHeaderFromBytes(b []byte) (VariableHeader, int) {
-	return ConnectHeader{}, 0
+func VariableHeaderFromBytes(b []byte, messageType uint8) (VariableHeader, int) {
+
+	switch messageType {
+	case CONNECT:
+		return ConnectHeaderFromBytes(b)
+	case CONNACK:
+		return ConnackHeaderFromBytes(b)
+	case PUBLISH:
+		return PublishHeaderFromBytes(b)
+	default:
+		return EmptyVariableHeader{}, 0
+	}
 }
 
 // MessageFromBytes parses an incoming packet and returns
 // a message
 func MessageFromBytes(b []byte) Message {
 	fixedHeader, fixedLength := FixedHeaderFromBytes(b)
-	variableHeader, variableLength := VariableHeaderFromBytes(b[fixedLength:])
+	variableHeader, variableLength := VariableHeaderFromBytes(b[fixedLength:], fixedHeader.MessageType)
 	payload := b[fixedLength+variableLength:]
 	return Message{
 		FixedHeader:    fixedHeader,
@@ -358,7 +380,7 @@ func msb(i int) byte {
 	return uint8(msb)
 }
 
-// strLen takes the msb and lsb bytes and returns 
+// strLen takes the msb and lsb bytes and returns
 // an int of those two multiplied
 func strLen(msb, lsb byte) int {
 	if msb == uint8(0) {

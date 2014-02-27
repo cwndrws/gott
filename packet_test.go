@@ -1,6 +1,7 @@
 package gott
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -54,5 +55,37 @@ func TestLengthFuncs(t *testing.T) {
 	newInt := strLen(msb, lsb)
 	if newInt != testInt {
 		t.Error("fail")
+	}
+}
+
+func TestConnectPacket(t *testing.T) {
+	fh := FixedHeader{
+		MessageType: CONNECT,
+		Dup:         true,
+		Qos:         1,
+		Retain:      true,
+		Remaining:   321,
+	}
+	ch := ConnectHeader{
+		ProtoName:    "MQIsdp",
+		ProtoVersion: 3,
+		CleanSession: true,
+		Will:         false,
+		WillQos:      1,
+		WillRetain:   true,
+		Pass:         false,
+		User:         true,
+		KeepAlive:    60,
+	}
+	pl := PayloadBuffer("This is the payload")
+	message := Message{
+		FixedHeader:    fh,
+		VariableHeader: ch,
+		Payload:        pl,
+	}
+	b := message.Bytes()
+	testMessage := MessageFromBytes(b)
+	if !reflect.DeepEqual(testMessage, message) {
+		t.Error("encoding and decoding CONNECT packet failed")
 	}
 }
