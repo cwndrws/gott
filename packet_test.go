@@ -46,3 +46,13 @@ func TestMsb(t *testing.T) {
 		t.Error("msb fail")
 	}
 }
+
+func TestLengthFuncs(t *testing.T) {
+	testInt := 256
+	msb := msb(testInt)
+	lsb := lsb(testInt)
+	newInt := strLen(msb, lsb)
+	if newInt != testInt {
+		t.Error("fail")
+	}
+}

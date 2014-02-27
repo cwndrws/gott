@@ -45,7 +45,7 @@ type ConnectHeader struct {
 	WillRetain   bool
 	Pass         bool
 	User         bool
-	KeepAlive    uint8
+	KeepAlive    int
 }
 
 // ConnackHeader holds all of the data for the
@@ -163,10 +163,12 @@ func (c ConnectHeader) Bytes() []byte {
 	if c.User {
 		FlagByte |= (1 << 7)
 	}
+	msb := msb(c.KeepAlive)
+	lsb := lsb(c.KeepAlive)
 
 	bytesToReturn = append(bytesToReturn, protoNameMsb, protoNameLsb)
 	bytesToReturn = append(bytesToReturn, ProtoNameBytes...)
-	bytesToReturn = append(bytesToReturn, ProtoVersionByte, FlagByte, c.KeepAlive)
+	bytesToReturn = append(bytesToReturn, ProtoVersionByte, FlagByte, msb, lsb)
 	return bytesToReturn
 }
 
@@ -247,9 +249,54 @@ func FixedHeaderFromBytes(b []byte) (FixedHeader, int) {
 	return fh, byteLength + 1
 }
 
-func ConnectHeaderFromBytes(b []byte) (ConnectHeader, int) {
+/*
+	ProtoName    string
+	ProtoVersion uint8
+	CleanSession bool
+	Will         bool
+	WillQos      uint8
+	WillRetain   bool
+	Pass         bool
+	User         bool
+	KeepAlive    uint8
 
-	return ConnectHeader{}, 0
+*/
+
+func ConnectHeaderFromBytes(b []byte) (ConnectHeader, int) {
+	protoNameLength := strLen(b[0], b[1])
+
+	protoName := string(b[2:protoNameLength+2])
+
+	protoVersion := uint8(b[protoNameLength+2])
+
+	flagByte := b[protoNameLength+3]
+
+	clean := flagByte & (1 << 1) > 0
+	will := flagByte & (1 << 2) > 0
+
+	var willQos uint8
+	willQos |= (flagByte >> 3)
+	willQos &^= (63 << 2)
+
+	willRetain := flagByte & (1 << 5) > 0
+	pass := flagByte & (1 << 6) > 0
+	user := flagByte & (1 << 7) > 0
+
+	keepAlive := strLen(b[protoNameLength+4], b[protoNameLength+5])
+
+	ch := ConnectHeader{
+		ProtoName: protoName,
+		ProtoVersion: protoVersion,
+		CleanSession: clean,
+		Will: will,
+		WillQos: willQos,
+		WillRetain: willRetain,
+		Pass: pass,
+		User: user,
+		KeepAlive: keepAlive,
+	}
+
+	return ch, protoNameLength+6
 }
 
 // DecodeRemainingLength decodes the encoded remaining
@@ -314,9 +361,10 @@ func msb(i int) byte {
 // strLen takes the msb and lsb bytes and returns 
 // an int of those two multiplied
 func strLen(msb, lsb byte) int {
-	if msb == 0 {
+	if msb == uint8(0) {
 		return int(lsb)
 	} else {
-		return int(lsb) * int(msb)
+		return (int(msb) * 256) + int(lsb)
 	}
+	return 0
 }
