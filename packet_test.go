@@ -24,7 +24,7 @@ func TestFixedHeaderEncodeDecode(t *testing.T) {
 	if testFH != fh {
 		t.Error("fixed headers did not match")
 	}
-	if bl != 3 {
+	if bl != 4 {
 		t.Error("Incorrect byte length")
 	}
 }
@@ -61,21 +61,17 @@ func TestLengthFuncs(t *testing.T) {
 func TestConnectPacket(t *testing.T) {
 	fh := FixedHeader{
 		MessageType: CONNECT,
-		Dup:         true,
-		Qos:         1,
-		Retain:      true,
-		Remaining:   321,
 	}
 	ch := ConnectHeader{
 		ProtoName:    "MQIsdp",
 		ProtoVersion: 3,
 		CleanSession: true,
-		Will:         false,
+		Will:         true,
 		WillQos:      1,
-		WillRetain:   true,
-		Pass:         false,
+		WillRetain:   false,
+		Pass:         true,
 		User:         true,
-		KeepAlive:    60,
+		KeepAlive:    10,
 	}
 	pl := PayloadBuffer("This is the payload")
 	message := Message{

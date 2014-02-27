@@ -87,9 +87,12 @@ type Message struct {
 // this is to prepare the message for sending
 func (m Message) Bytes() []byte {
 	bytesToReturn := make([]byte, 0)
+	vh := m.VariableHeader.Bytes()
+	pl := m.Payload.Bytes()
+	m.FixedHeader.Remaining = len(vh) + len(pl)
 	bytesToReturn = append(bytesToReturn, m.FixedHeader.Bytes()...)
-	bytesToReturn = append(bytesToReturn, m.VariableHeader.Bytes()...)
-	bytesToReturn = append(bytesToReturn, m.Payload.Bytes()...)
+	bytesToReturn = append(bytesToReturn, vh...)
+	bytesToReturn = append(bytesToReturn, pl...)
 	return bytesToReturn
 }
 
@@ -136,10 +139,7 @@ func (f FixedHeader) Bytes() []byte {
 // CONNECT messages
 func (c ConnectHeader) Bytes() []byte {
 	bytesToReturn := make([]byte, 0)
-	ProtoNameBytes := []byte(c.ProtoName)
-	protoNameMsb := msb(len(ProtoNameBytes))
-	protoNameLsb := lsb(len(ProtoNameBytes))
-
+	ProtoNameBytes := MqttUTF8Bytes(c.ProtoName)
 	ProtoVersionByte := byte(c.ProtoVersion)
 
 	FlagByte := byte(0)
@@ -168,9 +168,9 @@ func (c ConnectHeader) Bytes() []byte {
 	msb := msb(c.KeepAlive)
 	lsb := lsb(c.KeepAlive)
 
-	bytesToReturn = append(bytesToReturn, protoNameMsb, protoNameLsb)
 	bytesToReturn = append(bytesToReturn, ProtoNameBytes...)
 	bytesToReturn = append(bytesToReturn, ProtoVersionByte, FlagByte, msb, lsb)
+
 	return bytesToReturn
 }
 
@@ -182,7 +182,9 @@ func (c ConnectHeader) Type() string {
 // Bytes returns the bytes of the variable header
 // for the CONNACK message
 func (c ConnackHeader) Bytes() []byte {
-	return []byte{c.ReturnCode}
+	empty := byte(0)
+	retCodeByte := byte(c.ReturnCode)
+	return []byte{empty, retCodeByte}
 }
 
 // Tyoe returns a string of the type of variable header
@@ -258,15 +260,15 @@ func FixedHeaderFromBytes(b []byte) (FixedHeader, int) {
 		Retain:      retain,
 		Remaining:   remaining,
 	}
-	return fh, byteLength + 1
+	return fh, byteLength + 2
 }
 
 // ConnectHeaderFromBytes takes the first few bytes from
 // an incoming packet who's message type is CONNECT and
 // parses them into the ConnectHeader
 func ConnectHeaderFromBytes(b []byte) (ConnectHeader, int) {
-	protoNameLength := strLen(b[0], b[1])
 
+	protoNameLength := strLen(b[0], b[1])
 	protoName := string(b[2 : protoNameLength+2])
 
 	protoVersion := uint8(b[protoNameLength+2])
@@ -389,4 +391,15 @@ func strLen(msb, lsb byte) int {
 		return (int(msb) * 256) + int(lsb)
 	}
 	return 0
+}
+
+// MqttUTF8Bytes takes a string and encodes it like:
+// http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#utf-8
+func MqttUTF8Bytes(s string) []byte {
+	msb := msb(len(s))
+	lsb := lsb(len(s))
+
+	b := []byte{msb, lsb}
+	b = append(b, []byte(s)...)
+	return b
 }
