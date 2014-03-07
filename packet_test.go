@@ -3,6 +3,7 @@ package gott
 import (
 	"reflect"
 	"testing"
+	"log"
 )
 
 func TestForReality(t *testing.T) {
@@ -84,4 +85,9 @@ func TestConnectPacket(t *testing.T) {
 	if !reflect.DeepEqual(testMessage, message) {
 		t.Error("encoding and decoding CONNECT packet failed")
 	}
+}
+
+func TestConnectMessage(t *testing.T) {
+	con := NewConnect(false, false, false, 0, "", "", 10, "", "")
+	log.Printf("MESSAGE: %+v\n", con)
 }

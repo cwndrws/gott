@@ -27,12 +27,16 @@ type FixedHeader struct {
 	Remaining   int
 }
 
+
+// *************** VARIABLE HEADERS ******************** //
+
 // VariableHeader is an interface that all of
 // the different types of variable headers
 type VariableHeader interface {
 	Type() string
 	Bytes() []byte
 }
+
 
 // ConnectHeader holds all of the data for the
 // variable header for CONNECT messages
@@ -60,18 +64,59 @@ type PublishHeader struct {
 	Topic string
 }
 
+type MessageIDHeader struct {
+	MessageID int
+}
+
 type EmptyVariableHeader struct{}
+
+// ************ PAYLOADS ******************//
 
 // Payload is an interface that can be any kind of data
 // you want to send as long as you can write
 // it to bytes before we send it on the wire
 type Payload interface {
 	Bytes() []byte
+	MessageType() uint8
 }
 
 // PayloadBuffer is an alias of []byte so we can attach
 // functions to received payloads
 type PayloadBuffer []byte
+
+type EmptyPayload struct{}
+
+type ConnectPayload struct {
+	ClientID string
+	WillTopic string
+	WillMessage string
+	Username string
+	Password string
+}
+
+type PublishPayload struct {
+	Message string
+}
+
+type Subscription struct {
+	Topic string
+	Qos uint8
+}
+
+type SubscribePayload struct {
+	Subscriptions []Subscription
+}
+
+type SubackPayload struct {
+	Qoss []uint8
+}
+
+type UnsubscribePayload struct {
+	Subscriptions []Subscription
+}
+
+
+// ************** MESSAGE ******************//
 
 // Message holds everything that a message can be
 // message is the construct that the api will mainly
@@ -82,6 +127,10 @@ type Message struct {
 	VariableHeader VariableHeader
 	Payload        Payload
 }
+
+
+/********************ENCODING**************************/
+
 
 // Bytes writes all the data in a message to bytes
 // this is to prepare the message for sending
@@ -95,14 +144,6 @@ func (m Message) Bytes() []byte {
 	bytesToReturn = append(bytesToReturn, pl...)
 	return bytesToReturn
 }
-
-// Bytes Returns the []byte value of the
-// PayloadBuffer
-func (p PayloadBuffer) Bytes() []byte {
-	return []byte(p)
-}
-
-/********************ENCODING**************************/
 
 // Bytes writes all the data in the fixed header
 // as defined here: http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#fixed-header
@@ -134,6 +175,8 @@ func (f FixedHeader) Bytes() []byte {
 	bytesToReturn = append(bytesToReturn, lengthBytes...)
 	return bytesToReturn
 }
+
+// ************ VARIABLE HEADER ENCODING ************//
 
 // Bytes writes all the data in the variable header for
 // CONNECT messages
@@ -213,6 +256,16 @@ func (e EmptyVariableHeader) Type() string {
 	return "EMPTY"
 }
 
+func (m MessageIDHeader) Bytes() []byte {
+	msb := msb(m.MessageID)
+	lsb := lsb(m.MessageID)
+	return []byte{msb, lsb}
+}
+
+func (m MessageIDHeader) Type() string {
+	return "MESSAGE"
+}
+
 // EncodeRemainingLength encodes an int into the
 // Remaining length encoding format as defined in the spec
 func EncodeRemainingLength(length int) []byte {
@@ -230,6 +283,27 @@ func EncodeRemainingLength(length int) []byte {
 		encodedLength = append(encodedLength, digit)
 	}
 	return encodedLength
+}
+
+
+// **************** PAYLOAD ENCODING ******************** //
+
+// Bytes Returns the []byte value of the
+// PayloadBuffer
+func (p PayloadBuffer) Bytes() []byte {
+	return []byte(p)
+}
+
+func (p PayloadBuffer) MessageType() uint8 {
+	return uint8(0)
+}
+
+func (c ConnectPayload) Bytes() []byte {
+	return []byte{}
+}
+
+func (c ConnectPayload) MessageType() uint8 {
+	return CONNECT
 }
 
 /********************DECODING****************************/
@@ -260,8 +334,11 @@ func FixedHeaderFromBytes(b []byte) (FixedHeader, int) {
 		Retain:      retain,
 		Remaining:   remaining,
 	}
-	return fh, byteLength + 2
+	return fh, byteLength + 1
 }
+
+
+// ********** VARIABLE HEADER DECODING *********//
 
 // ConnectHeaderFromBytes takes the first few bytes from
 // an incoming packet who's message type is CONNECT and
@@ -327,7 +404,7 @@ func DecodeRemainingLength(b []byte) (int, int) {
 		last = cur
 		cur++
 	}
-	return value, cur
+	return value, cur + 1
 }
 
 // VariableHeaderFromBytes parses bytes from an incoming
