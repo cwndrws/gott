@@ -62,6 +62,7 @@ type ConnackHeader struct {
 // variable header for PUBLISH messages
 type PublishHeader struct {
 	Topic string
+	MessageID int
 }
 
 type MessageIDHeader struct {
@@ -238,7 +239,13 @@ func (c ConnackHeader) Type() string {
 // Bytes returns the bytes of the variable header
 // for the PUBLISH message
 func (p PublishHeader) Bytes() []byte {
-	return []byte(p.Topic)
+	topicBytes := MqttUTF8Bytes(p.Topic)
+	if p.MessageID != 0 {
+		msb := msb(p.MessageID)
+		lsb := lsb(p.MessageID)
+		topicBytes = append(topicBytes, msb, lsb)
+	}
+	return topicBytes
 }
 
 // Type returns the string of the type of variable header
@@ -299,7 +306,32 @@ func (p PayloadBuffer) MessageType() uint8 {
 }
 
 func (c ConnectPayload) Bytes() []byte {
-	return []byte{}
+	bytesToReturn := make([]byte, 0)
+
+	clientIDBytes := MqttUTF8Bytes(c.ClientID)
+	bytesToReturn = append(bytesToReturn, clientIDBytes...)
+
+	if c.WillTopic != "" {
+		willTopicBytes := MqttUTF8Bytes(c.WillTopic)
+		bytesToReturn = append(bytesToReturn, willTopicBytes... )
+	}
+
+	if c.WillMessage != "" {
+		willMessageBytes := MqttUTF8Bytes(c.WillMessage)
+		bytesToReturn = append(bytesToReturn, willMessageBytes... )
+	}
+
+	if c.Username != "" {
+		usernameBytes := MqttUTF8Bytes(c.Username)
+		bytesToReturn = append(bytesToReturn, usernameBytes... )
+	}
+
+	if c.Password != "" {
+		passwordBytes := MqttUTF8Bytes(c.Password)
+		bytesToReturn = append(bytesToReturn, passwordBytes... )
+	}
+
+	return bytesToReturn
 }
 
 func (c ConnectPayload) MessageType() uint8 {
