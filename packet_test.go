@@ -29,6 +29,32 @@ func TestFixedHeaderEncodeDecode(t *testing.T) {
 	}
 }
 
+func BenchmarkFixedHeaderEncodingAppend(b *testing.B) {
+	fh := FixedHeader{
+		MessageType: PINGREQ,
+		Dup:         true,
+		Qos:         1,
+		Retain:      true,
+		Remaining:   321,
+	}
+	for i:=0;i<b.N;i++ {
+		fh.Bytes()
+	}
+}
+
+func BenchmarkFixedHeaderEncodingBuffer(b *testing.B) {
+	fh := FixedHeader{
+		MessageType: PINGREQ,
+		Dup:         true,
+		Qos:         1,
+		Retain:      true,
+		Remaining:   321,
+	}
+	for i:=0;i<b.N;i++ {
+		fh.BytesWithBuffer()
+	}
+}
+
 func TestLsb(t *testing.T) {
 	l := lsb(65535)
 	if l != uint8(255) {

@@ -1,5 +1,9 @@
 package gott
 
+import (
+	"bytes"
+)
+
 const (
 	CONNECT     = uint8(1)
 	CONNACK     = uint8(2)
@@ -177,6 +181,39 @@ func (f FixedHeader) Bytes() []byte {
 	return bytesToReturn
 }
 
+func (f FixedHeader) BytesWithBuffer() []byte {
+	var byte1 byte
+
+	// Set Message type
+	byte1 |= f.MessageType
+
+	// Set Dup Flag
+	if f.Dup {
+		byte1 |= (1 << 4)
+	}
+
+	// Set Qos
+	byte1 |= (f.Qos << 5)
+
+	// Set Retain
+	if f.Retain {
+		byte1 |= (1 << 7)
+	}
+
+	lengthBytes := EncodeRemainingLengthBuffer(f.Remaining)
+	numOfBytes := 1 + len(lengthBytes)
+	buf := new(bytes.Buffer)
+	buf.Grow(numOfBytes)
+	err := buf.WriteByte(byte1)
+	if err != nil {
+		panic(err)
+	}
+	_, err = buf.Write(lengthBytes)
+	if err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
 // ************ VARIABLE HEADER ENCODING ************//
 
 // Bytes writes all the data in the variable header for
@@ -292,6 +329,37 @@ func EncodeRemainingLength(length int) []byte {
 	return encodedLength
 }
 
+func EncodeRemainingLengthBuffer(length int) []byte {
+	if length == 0 {
+		panic("INVALID REMAINING LENGTH")
+	}
+	var numOfBytes int;
+	switch {
+	case length < 128 :
+		numOfBytes = 1
+	case length < 16384:
+		numOfBytes = 2
+	case length < 2097152:
+		numOfBytes = 3
+	default:
+		numOfBytes = 4
+	}
+	buf := new(bytes.Buffer)
+	buf.Grow(numOfBytes)
+	for length > 0 {
+		mod := length % 128
+		digit := uint8(mod)
+		length = length / 128
+		if length > 0 {
+			digit |= 0x80
+		}
+		err := buf.WriteByte(digit)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return buf.Bytes()
+}
 
 // **************** PAYLOAD ENCODING ******************** //
 
